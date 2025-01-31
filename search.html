@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus with To-Do List & Pomodoro Timer</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            background: linear-gradient(rgba(0, 0, 0, 0.5),
+                    rgba(0, 0, 0, 0.5)),
+                url("https://images.unsplash.com/photo-1548438294-1ad5d5f4f063?q=80&w=2072&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D") no-repeat center center fixed;
+
+            background-size: cover;
+            color: white;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 3rem;
+        }
+
+        input,
+        button {
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            outline: none;
+            font-size: 1rem;
+        }
+
+        button {
+            background-color: #9694FF;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #9694FF;
+        }
+
+        #todo-container,
+        #pomodoro-container {
+            position: absolute;
+            padding: 20px;
+            border-radius: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+        }
+
+        #todo-container {
+            top: 10%;
+            left: 5%;
+        }
+
+        #pomodoro-container {
+            top: 10%;
+            right: 5%;
+        }
+
+        ul li {
+            margin: 5px 0;
+            list-style: none;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+        }
+
+        .task-item input[type="checkbox"] {
+            margin-right: 10px;
+        }
+
+        #progress {
+            margin-top: 10px;
+            font-size: 1.2rem;
+        }
+    </style>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <h1>Focus with <br />Pomodoro Timer</h1>
+    <div class="chat-container">
+        <div class="chat-box" id="chat-box"></div>
+        <div class="chat-input">
+            <input type="text" id="user-input" placeholder="Type a message" />
+            <button id="send-btn">Send</button>
+        </div>
+    </div>
+
+    <div id="todo-container">
+        <h2>To-Do List</h2>
+        <input type="text" id="todo-input" placeholder="Add a new task">
+        <button onclick="addTodo()">Add Task</button>
+        <ul id="todo-list"></ul>
+        <p id="progress">Progress: 0%</p>
+    </div>
+
+    <div id="pomodoro-container">
+        <h2>Pomodoro Timer</h2>
+        <p id="timer" style="font-size:2rem">25:00</p>
+        <button onclick="startPomodoro()">Start Timer</button>
+        <button onclick="stopPomodoro()">Stop Timer</button>
+        <p>Total Focused Time: <span id="focused-time">0</span> minutes</p>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        async function sendMessage() {
+            const userMessage = document.getElementById('userMessage').value;
+            if (!userMessage) return;
+
+            // Display user message
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML += `<p><b>You:</b> ${userMessage}</p>`;
+            document.getElementById('userMessage').value = '';  // Clear input
+
+            // Send the message to the API
+            const response = await fetch('http://localhost:3001/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: userMessage })
+            });
+
+            const data = await response.json();
+            const botReply = data.reply;
+
+            // Display bot's reply
+            messagesDiv.innerHTML += `<p><b>Bot:</b> ${botReply}</p>`;
+        }
+        function addTodo() {
+            const task = document.getElementById('todo-input').value;
+            if (task) {
+                const list = document.getElementById('todo-list');
+                const listItem = document.createElement('li');
+                listItem.className = 'task-item';
+                listItem.innerHTML = `<input type="checkbox" onchange="updateProgress()"> <span>${task}</span>`;
+                list.appendChild(listItem);
+                document.getElementById('todo-input').value = '';
+                updateProgress();
+            }
+        }
+
+        function updateProgress() {
+            const tasks = document.querySelectorAll('#todo-list .task-item');
+            const completedTasks = document.querySelectorAll('#todo-list .task-item input:checked').length;
+            const progress = tasks.length ? Math.round((completedTasks / tasks.length) * 100) : 0;
+            document.getElementById('progress').textContent = `Progress: ${progress}%`;
+        }
+
+        let timer;
+        let timeLeft = 1500;
+        let sessionsCompleted = 0;
+        let totalFocusedTime = 0;
+
+        function startPomodoro() {
+            clearInterval(timer);
+            timer = setInterval(() => {
+                timeLeft--;
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                document.getElementById('timer').textContent = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    alert('Time is up! Take a break.');
+                    sessionsCompleted++;
+                    totalFocusedTime += 25;
+                    document.getElementById('focused-time').textContent = totalFocusedTime;
+                    if (sessionsCompleted % 4 === 0) {
+                        timeLeft = 300;
+                        alert('Starting a 5-minute break!');
+                        startPomodoro();
+                    } else {
+                        timeLeft = 1500;
+                    }
+                }
+            }, 1000);
+        }
+
+        function stopPomodoro() {
+            clearInterval(timer);
+            alert('Pomodoro session stopped!');
+        }
+    </script>
+</body>
+
+</html>
